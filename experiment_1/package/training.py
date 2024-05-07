@@ -1,4 +1,5 @@
 import torch
+from package.compute_procrustes import compute_procrustes
 
 #Training the model
 def train_model(model,trainloader,testloader,device,criterion,epochs=1,optimizer=None,scheduler=None,type='regression'):
@@ -173,19 +174,25 @@ def train_model_orthogonal(model,trainloader,testloader,device,criterion,epochs=
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()
+
+            for layer in model.named_parameters():
+                if 'weight' in layer[0]:
+                    W = layer[1]
+                    A = W.data.cpu().numpy().T
+                    W.data = torch.from_numpy(compute_procrustes(A)).float().t().to(device)
         
         if scheduler is not None:
             scheduler.step(total_loss)   
 
         #put all weights consecutive to low degree to zero
+        """
         if epoch % 1 == 0:
-            for layer in reversed(list(model.named_parameters())):
+            for layer in model.named_parameters():
                 if 'weight' in layer[0]:
                     W = layer[1]
-                    U, S, V = torch.svd(W, some=True, compute_uv=True)
-                    S[S < 0.6] = 0
-                    S[S >= 0.6] = 1
-                    W.data = torch.mm(U, torch.mm(torch.diag(S), V.t()))
+                    A = W.data.cpu().numpy().T
+                    W.data = torch.from_numpy(compute_procrustes(A)).float().t().to(device)
+        """
 
         if epoch % 10 == 0:
             print(f'Epoch {epoch}')
