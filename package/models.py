@@ -188,8 +188,6 @@ class Polynomial_MLP(nn.Module):
         else:
             self.non_linearity = None
         self.initial_weights = initial_weights
-
-        print(self.num_layers)
         
         if self.num_layers == 1:
             setattr(self, self.list_terms[0] + '{}'.format(1), nn.Linear(self.input_size, self.output_size))
@@ -198,6 +196,7 @@ class Polynomial_MLP(nn.Module):
 
         else:
             setattr(self, self.list_terms[0] + '{}'.format(1), nn.Linear(self.input_size, self.hidden_size_list[0]))
+            print(self.list_terms[0]+'{}'.format(1))
             for d in range(2,self.degree+1):
                 print(self.list_terms[d-1]+'{}'.format(1))
                 setattr(self, self.list_terms[d-1]+'{}'.format(1), nn.Parameter(torch.zeros(self.input_size,  self.hidden_size_list[0]*self.input_size**(d-1))))
@@ -208,29 +207,29 @@ class Polynomial_MLP(nn.Module):
 
         #initialize weights and biases
         if initial_weights == 'normal':
-            for d in range(2,self.degree):
-                getattr(self, self.list_terms[d]+'{}'.format(1)).data.normal_(0.0, 1)
+            for d in range(2,self.degree+1):
+                getattr(self, self.list_terms[d-1]+'{}'.format(1)).data.normal_(0.0, 1)
         elif initial_weights == 'xavier':
-            for d in range(2,self.degree):
-                nn.init.xavier_normal_(getattr(self, self.list_terms[d]+'{}'.format(1)))
+            for d in range(2,self.degree+1):
+                nn.init.xavier_normal_(getattr(self, self.list_terms[d-1]+'{}'.format(1)))
         elif initial_weights == 'kaiming':
-            for d in range(2,self.degree):
-                nn.init.kaiming_normal_(getattr(self, self.list_terms[d]+'{}'.format(1)),nonlinearity=non_linearity)
+            for d in range(2,self.degree+1):
+                nn.init.kaiming_normal_(getattr(self, self.list_terms[d-1]+'{}'.format(1)),nonlinearity=non_linearity)
         elif initial_weights == 'zero':
-            for d in range(2,self.degree):
-                getattr(self, self.list_terms[d]+'{}'.format(1)).data.fill_(0.0)
+            for d in range(2,self.degree+1):
+                getattr(self, self.list_terms[d-1]+'{}'.format(1)).data.fill_(0.0)
         elif initial_weights == 'one':
-            for d in range(2,self.degree):
-                getattr(self, self.list_terms[d]+'{}'.format(1)).data.fill_(1.0)
+            for d in range(2,self.degree+1):
+                getattr(self, self.list_terms[d-1]+'{}'.format(1)).data.fill_(1.0)
         elif initial_weights == 'uniform':
-            for d in range(2,self.degree):
-                getattr(self, self.list_terms[d]+'{}'.format(1)).data.uniform_(-1.0, 1.0)
+            for d in range(2,self.degree+1):
+                getattr(self, self.list_terms[d-1]+'{}'.format(1)).data.uniform_(-1.0, 1.0)
         elif initial_weights == 'xavier_uniform':
-            for d in range(2,self.degree):
-                nn.init.xavier_uniform_(getattr(self, self.list_terms[d]+'{}'.format(1)))
+            for d in range(2,self.degree+1):
+                nn.init.xavier_uniform_(getattr(self, self.list_terms[d-1]+'{}'.format(1)))
         elif initial_weights == 'kaiming_uniform':
-            for d in range(2,self.degree):
-                nn.init.kaiming_uniform_(getattr(self, self.list_terms[d]+'{}'.format(1)),nonlinearity=non_linearity)
+            for d in range(2,self.degree+1):
+                nn.init.kaiming_uniform_(getattr(self, self.list_terms[d-1]+'{}'.format(1)),nonlinearity=non_linearity)
 
         for i in range(1,self.num_layers):
             if initial_weights == 'normal':
@@ -258,7 +257,7 @@ class Polynomial_MLP(nn.Module):
             outputs = getattr(self, self.list_terms[0]+'{}'.format(1))(inputs) #linear part 
             x = inputs.unsqueeze(-2) 
             for d in range(2,self.degree+1):
-                q = torch.matmul(x, getattr(self, self.list_terms[d]+'{}'.format(1))).reshape((batch_size, input_dim, self.output_size*self.input_size**(d-1)))
+                q = torch.matmul(x, getattr(self, self.list_terms[d-1]+'{}'.format(1))).reshape((batch_size, input_dim, self.output_size*self.input_size**(d-1)))
                 for i in range(1,d):
                     q = torch.bmm(x,q).reshape((batch_size, input_dim, self.output_size*self.input_size**(d-i)))
                 outputs += q.squeeze(-2)
@@ -266,9 +265,8 @@ class Polynomial_MLP(nn.Module):
             input_dim = inputs.shape[1]
             outputs = getattr(self, self.list_terms[0]+'{}'.format(1))(inputs) #linear part 
             x = inputs.unsqueeze(-2) 
-            for d in range(2,self.degree):
-                print( getattr(self, self.list_terms[d]+'{}'.format(1)))
-                q = torch.matmul(x, getattr(self, self.list_terms[d]+'{}'.format(1))).reshape((batch_size, input_dim, self.hidden_size_list[0]*self.input_size**(d-1)))
+            for d in range(2,self.degree+1):
+                q = torch.matmul(x, getattr(self, self.list_terms[d-1]+'{}'.format(1))).reshape((batch_size, input_dim, self.hidden_size_list[0]*self.input_size**(d-1)))
                 for i in range(1,d):
                     q = torch.bmm(x,q).reshape((batch_size, input_dim, self.hidden_size_list[0]*self.input_size**(d-i)))
                 outputs += q.squeeze(-2)
