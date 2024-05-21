@@ -255,21 +255,23 @@ class Polynomial_MLP(nn.Module):
         if self.num_layers == 1:
             input_dim = inputs.shape[1]
             outputs = getattr(self, self.list_terms[0]+'{}'.format(1))(inputs) #linear part 
-            x = inputs.unsqueeze(-2) 
+            x = inputs.unsqueeze(-2)
             for d in range(2,self.degree+1):
-                q = torch.matmul(x, getattr(self, self.list_terms[d-1]+'{}'.format(1))).reshape((batch_size, input_dim, self.output_size*self.input_size**(d-1)))
-                for i in range(1,d):
+                q = torch.matmul(inputs, getattr(self, self.list_terms[d-1]+'{}'.format(1))).reshape((batch_size, input_dim, self.output_size*self.input_size**(d-2)))
+                for i in range(3,d+1):
                     q = torch.bmm(x,q).reshape((batch_size, input_dim, self.output_size*self.input_size**(d-i)))
-                outputs += q.squeeze(-2)
+                q = torch.bmm(x,q).squeeze(-2)
+                outputs += q
         else:
             input_dim = inputs.shape[1]
             outputs = getattr(self, self.list_terms[0]+'{}'.format(1))(inputs) #linear part 
             x = inputs.unsqueeze(-2) 
             for d in range(2,self.degree+1):
-                q = torch.matmul(x, getattr(self, self.list_terms[d-1]+'{}'.format(1))).reshape((batch_size, input_dim, self.hidden_size_list[0]*self.input_size**(d-1)))
-                for i in range(1,d):
+                q = torch.matmul(inputs, getattr(self, self.list_terms[d-1]+'{}'.format(1))).reshape((batch_size, input_dim, self.hidden_size_list[0]*self.input_size**(d-2)))
+                for i in range(3,d+1):
                     q = torch.bmm(x,q).reshape((batch_size, input_dim, self.hidden_size_list[0]*self.input_size**(d-i)))
-                outputs += q.squeeze(-2)
+                q = torch.bmm(x,q).squeeze(-2)
+                outputs += q
             if self.non_linearity is not None:
                 outputs = self.non_linearity(outputs)
             for i in range(self.num_layers-2):
