@@ -1,44 +1,55 @@
 import torch
+from tqdm import tqdm
 from package.compute_procrustes import compute_procrustes, compute_orthonormal_projection
 
 #Training the model
-def train_model(model,trainloader,testloader,device,criterion,epochs=1,optimizer=None,scheduler=None,type='regression'):
+def train_model(model,trainloader,testloader,device,criterion,epochs=1,optimizer=None,scheduler=None,type='regression',print_epoch=10):
     if optimizer is None:
         optimizer = torch.optim.Adam(model.parameters())
 
     model.train()
 
     for epoch in range(epochs):
-        total_loss = 0
-        for X,y in trainloader:
-            X = X.to(device)
-            y = y.to(device)
-            outputs = model(X)
-            loss = criterion(outputs,y)
-            total_loss += loss.item()
-            optimizer.zero_grad()
-            loss.backward()
-            optimizer.step()
-        
-        if scheduler is not None:
-            scheduler.step(total_loss)
 
-        if epoch % 10 == 0:
-            print(f'Epoch {epoch}')
-            print("lr: ", optimizer.param_groups[0]['lr'])
-            if type == 'classification':
-                print(total_loss)
-                print("Training Loss")
-                evaluate_classification_model(model,trainloader,device,criterion)
-                print("Test Loss")
-                evaluate_classification_model(model,testloader,device,criterion)
-                print("-------------------------")
-            else:
-                print("Training Loss")
-                print(total_loss / len(trainloader.dataset))
-                print("Test Loss")
-                evaluate_regression_model(model,testloader,device,criterion)
-                print("-------------------------")
+        total_loss = 0
+        if type == 'classification':
+            correct = 0
+
+        with tqdm(trainloader, total=len(trainloader), unit="batch", desc=f'Epoch {epoch}') as tepoch:
+            for X,y in tepoch:
+                tepoch.set_description(f"Epoch {epoch}")
+
+                X = X.to(device)
+                y = y.to(device)
+                outputs = model(X)
+                loss = criterion(outputs,y)
+
+                optimizer.zero_grad()
+                loss.backward()
+                optimizer.step()
+
+                total_loss += loss.item()/len(trainloader.dataset)
+                if type == 'regression':  
+                    tepoch.set_postfix(loss=total_loss)
+                if type == 'classification':
+                    _, predicted = torch.max(outputs, 1)
+                    correct += (predicted == y.flatten()).sum().item()/len(trainloader.dataset)
+                    tepoch.set_postfix(loss=total_loss, accuracy=correct)
+            
+            if scheduler is not None:
+                scheduler.step(total_loss)
+
+            if epoch % print_epoch == 0:
+                print(f'Epoch {epoch}')
+                print("lr: ", optimizer.param_groups[0]['lr'])
+                if type == 'classification':
+                    print("-------------------------")
+                    evaluate_classification_model(model,testloader,device,criterion)
+                    print("-------------------------")
+                else:
+                    print("-------------------------")
+                    evaluate_regression_model(model,testloader,device,criterion)
+                    print("-------------------------")
 
 #Training the model
 def train_model_zero(model,trainloader,testloader,device,criterion,epochs=1,optimizer=None,scheduler=None,type='regression'):
@@ -245,7 +256,6 @@ def train_model_orthonormal(model,trainloader,testloader,device,criterion,epochs
             else:
                 print("Training Loss")
                 print(total_loss / len(trainloader.dataset))
-                print("Test Loss")
                 evaluate_regression_model(model,testloader,device,criterion)
                 print("-------------------------")
 
@@ -267,8 +277,9 @@ def evaluate_classification_model(model,dataloader,device,criterion):
             total += y.size(0)
             correct += (predicted == y.flatten()).sum().item()
 
-    print(f'Accuracy: {100 * correct / total}')
-    print(f'Loss: {total_loss / total}')
+    print('Test set: Avg. loss: {:.4f}, Accuracy: {}/{} ({:.0f}%)'.format(
+    total_loss, correct, len(dataloader.dataset),
+    100. * correct / len(dataloader.dataset)))
 
 def evaluate_regression_model(model,dataloader,device,criterion):
     model.eval()
@@ -284,4 +295,4 @@ def evaluate_regression_model(model,dataloader,device,criterion):
             total_loss += loss.item()
             total += y.size(0)
 
-    print(f'Loss: {total_loss / total}')
+    print('Test set: Avg. loss: {:.4f}'.format(total_loss))

@@ -1,5 +1,6 @@
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 
 # Construct a model with one layer
 class Model_MLP(nn.Module):
@@ -203,6 +204,7 @@ class Polynomial_MLP(nn.Module):
             for i in range(1,self.num_layers-1):
                 print( self.list_terms[0] + '{}'.format(i+1))
                 setattr(self, self.list_terms[0] + '{}'.format(i+1), nn.Linear(self.hidden_size_list[i-1], self.hidden_size_list[i]))
+            print(self.list_terms[0]+'{}'.format(self.num_layers))
             setattr(self, self.list_terms[0] + '{}'.format(self.num_layers), nn.Linear(self.hidden_size_list[-1], self.output_size))
 
         #initialize weights and biases
@@ -284,3 +286,36 @@ class Polynomial_MLP(nn.Module):
             outputs = nn.LogSoftmax(dim=1)(outputs)
 
         return outputs
+
+class ConvNet(nn.Module):
+    def __init__(self):
+        super(ConvNet, self).__init__()
+        self.conv1 = nn.Conv2d(1, 10, kernel_size=5)
+        self.conv2 = nn.Conv2d(10, 20, kernel_size=5)
+        self.conv2_drop = nn.Dropout2d()
+        self.fc_1 = nn.Linear(320, 50)
+        self.fc_2 = nn.Linear(50, 10)
+
+    def forward(self, x):
+        x = F.relu(F.max_pool2d(self.conv1(x), 2))
+        x = F.relu(F.max_pool2d(self.conv2_drop(self.conv2(x)), 2))
+        x = x.view(-1, 320)
+        x = F.relu(self.fc_1(x))
+        x = F.dropout(x, training=self.training)
+        x = self.fc_2(x)
+        return F.log_softmax(x, dim=1)
+
+class PolynomialConvNet(nn.Module):
+    def __init__(self,fc_model):
+        super(PolynomialConvNet, self).__init__()
+        self.conv1 = nn.Conv2d(1, 10, kernel_size=5)
+        self.conv2 = nn.Conv2d(10, 20, kernel_size=5)
+        self.conv2_drop = nn.Dropout2d()
+        self.fc_model = fc_model
+
+    def forward(self, x):
+        x = F.relu(F.max_pool2d(self.conv1(x), 2))
+        x = F.relu(F.max_pool2d(self.conv2_drop(self.conv2(x)), 2))
+        x = x.view(-1, 320)
+        x = self.fc_model(x)
+        return x
